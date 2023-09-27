@@ -4,8 +4,6 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
 
-
-
 router = APIRouter(
     prefix="/barrels",
     tags=["barrels"],
@@ -14,11 +12,9 @@ router = APIRouter(
 
 class Barrel(BaseModel):
     sku: str
-
     ml_per_barrel: int
     potion_type: list[int]
     price: int
-
     quantity: int
 
 @router.post("/deliver")
@@ -30,7 +26,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         price += row.price * row.quantity
         ml += row.ml_per_barrel * row.quantity
     with db.engine.begin() as connection:
-        result = connection.execute("UPDATE global_inventory SET num_red_ml = num_red_ml + " + str(ml) + ", gold = gold - " + str(price))
+        result = connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_red_ml = num_red_ml + " + str(ml) + ", gold = gold - " + str(price)))
     print(barrels_delivered)
     return "OK"
 
@@ -46,9 +42,9 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     print(wholesale_catalog)
     quantity = 0
     with db.engine.begin() as connection:
-        num_potions = connection.execute("SELECT num_red_potions FROM global_inventory")
-        gold = connection.execute("SELECT gold FROM global_inventory")
-        if num_potions < 10 and gold <= price:
+        num_potions = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
+        gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
+        if num_potions.first()[0] < 10 and gold.first()[0] >= price:
             quantity = 1
     return [
         {

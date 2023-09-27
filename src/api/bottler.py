@@ -18,6 +18,12 @@ class PotionInventory(BaseModel):
 @router.post("/deliver")
 def post_deliver_bottles(potions_delivered: list[PotionInventory]):
     """ """
+    quantity = 0
+    for row in potions_delivered:
+        quantity += row.quantity
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_red_potions = num_red_potions + " + str(quantity) + ", num_red_ml = num_red_ml - " + str(100 * quantity)))
+    
     print(potions_delivered)
 
     return "OK"
@@ -30,9 +36,10 @@ def get_bottle_plan():
     """
     quantity = 0
     with db.engine.begin() as connection:
-        result = connection.execute("SELECT num_red_ml FROM global_inventory")
-        if result >= 100:
-            quantity = result // 100
+        result = connection.execute(sqlalchemy.text("SELECT num_red_ml FROM global_inventory"))
+        ml = result.first()[0]
+        if ml >= 100:
+            quantity = ml // 100
     # Each bottle has a quantity of what proportion of red, blue, and
     # green potion to add.
     # Expressed in integers from 1 to 100 that must sum up to 100.
@@ -42,6 +49,6 @@ def get_bottle_plan():
     return [
             {
                 "potion_type": [100, 0, 0, 0],
-                "quantity": quantity,
+                "quantity": quantity
             }
         ]
