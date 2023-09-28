@@ -14,7 +14,7 @@ def get_catalog():
         num_potions = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
         num_potions = num_potions.first()[0]
 
-
+    
     # Can return a max of 20 items.
 
     return [
