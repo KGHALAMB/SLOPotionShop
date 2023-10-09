@@ -47,10 +47,13 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """ """
     result = []
-
+    barrel_order = []
     red_quantity = 0
     green_quantity = 0
     blue_quantity = 0
+    gold_spent = 0
+    with db.engine.begin() as connection:
+        gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).first()[0]
 
     for barrel in wholesale_catalog:
         if barrel.quantity > 0:
@@ -60,25 +63,25 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 red_potion_type = barrel.potion_type
                 with db.engine.begin() as connection:
                     num_potions = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
-                    gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
-                    if num_potions.first()[0] < 10 and gold.first()[0] >= red_price:
-                        red_quantity = 1
-                        result.append({
-                                "sku": "SMALL_RED_BARREL",
-                                "ml_per_barrel": red_ml_per_barrel,
-                                "potion_type": red_potion_type,
-                                "price": red_price,
-                                "quantity": red_quantity
-                            })
+                if num_potions.first()[0] < 10 and gold >= red_price:
+                    red_quantity = 1
+                    gold_spent += red_price
+                    result.append({
+                            "sku": "SMALL_RED_BARREL",
+                            "ml_per_barrel": red_ml_per_barrel,
+                            "potion_type": red_potion_type,
+                            "price": red_price,
+                            "quantity": red_quantity
+                        })
             if barrel.sku == "SMALL_GREEN_BARREL":
                 green_price = barrel.price
                 green_ml_per_barrel = barrel.ml_per_barrel
                 green_potion_type = barrel.potion_type
                 with db.engine.begin() as connection:
                     num_potions = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
-                    gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
-                if num_potions.first()[0] < 10 and gold.first()[0] >= green_price:
+                if num_potions.first()[0] < 10 and gold >= green_price:
                     green_quantity = 1
+                    gold_spent += green_price
                     result.append({
                         "sku": "SMALL_GREEN_BARREL",
                         "ml_per_barrel": green_ml_per_barrel,
@@ -92,16 +95,16 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 blue_potion_type = barrel.potion_type
                 with db.engine.begin() as connection:
                     num_potions = connection.execute(sqlalchemy.text("SELECT num_blue_potions FROM global_inventory"))
-                    gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory"))
-                    if num_potions.first()[0] < 10 and gold.first()[0] >= blue_price:
-                        blue_quantity = 1
-                        result.append({
+                if num_potions.first()[0] < 10 and gold >= blue_price:
+                    blue_quantity = 1
+                    gold_spent += blue_price
+                    result.append({
                         "sku": "SMALL_BLUE_BARREL",
                         "ml_per_barrel": blue_ml_per_barrel,
                         "potion_type": blue_potion_type,
                         "price": blue_price,
                         "quantity": blue_quantity
-                        })
-        print(wholesale_catalog)
-    
+                    })
+        if gold_spent >= gold:
+            return result
     return result
