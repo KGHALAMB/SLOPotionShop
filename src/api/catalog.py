@@ -16,7 +16,8 @@ def get_catalog():
             num_red = row[0]
             num_blue = row[1]
             num_green = row[2]
-        if num_potions > 0:
+        total_potions = num_red + num_blue + num_green
+        if total_potions > 0:
             return [
             {
                 "sku": "RED_POTION_0",
