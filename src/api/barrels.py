@@ -50,33 +50,29 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     gold_spent = 0
     with db.engine.begin() as connection:
         gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).first()[0]
-    
-    for barrel in wholesale_catalog:
-        if barrel.quantity > 0:
-            if barrel.sku == "SMALL_RED_BARREL":
-                red_price = barrel.price
-                with db.engine.begin() as connection:
+        for barrel in wholesale_catalog:
+            if barrel.quantity > 0:
+                if barrel.sku == "SMALL_RED_BARREL":
+                    red_price = barrel.price
                     num_potions = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
-                if num_potions.first()[0] < 5 and gold-gold_spent >= red_price:
-                    barrel.quantity = 1
-                    gold_spent += red_price
-                    result.append(barrel)
-            if barrel.sku == "SMALL_GREEN_BARREL":
-                green_price = barrel.price
-                with db.engine.begin() as connection:
+                    if num_potions.first()[0] < 5 and gold-gold_spent >= red_price:
+                        barrel.quantity = 1
+                        gold_spent += red_price
+                        result.append(barrel)
+                if barrel.sku == "SMALL_GREEN_BARREL":
+                    green_price = barrel.price
                     num_potions = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory"))
-                if num_potions.first()[0] < 5 and gold-gold_spent >= green_price:
-                    barrel.quantity = 1
-                    gold_spent += green_price
-                    result.append(barrel)
-            if barrel.sku == "SMALL_BLUE_BARREL":
-                blue_price = barrel.price
-                with db.engine.begin() as connection:
+                    if num_potions.first()[0] < 5 and gold-gold_spent >= green_price:
+                        barrel.quantity = 1
+                        gold_spent += green_price
+                        result.append(barrel)
+                if barrel.sku == "SMALL_BLUE_BARREL":
+                    blue_price = barrel.price
                     num_potions = connection.execute(sqlalchemy.text("SELECT num_blue_potions FROM global_inventory"))
-                if num_potions.first()[0] < 5 and gold-gold_spent >= blue_price:
-                    gold_spent += blue_price
-                    barrel.quantity = 1
-                    result.append(barrel)
-        if gold_spent >= gold:
-            return result
-    return result
+                    if num_potions.first()[0] < 5 and gold-gold_spent >= blue_price:
+                        gold_spent += blue_price
+                        barrel.quantity = 1
+                        result.append(barrel)
+            if gold_spent >= gold:
+                return result
+        return result
