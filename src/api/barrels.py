@@ -3,6 +3,8 @@ from src import database as db
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from src.api import auth
+import random
+
 
 router = APIRouter(
     prefix="/barrels",
@@ -48,6 +50,8 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     """ """
     result = []
     gold_spent = 0
+    random.shuffle(wholesale_catalog)
+    print(wholesale_catalog)
     with db.engine.begin() as connection:
         gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).first()[0]
         for barrel in wholesale_catalog:
