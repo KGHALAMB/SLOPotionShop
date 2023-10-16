@@ -11,36 +11,30 @@ def get_catalog():
     Each unique item combination must have only a single price.
     """
     with db.engine.begin() as connection:
-        num_potions = connection.execute(sqlalchemy.text("SELECT num_red_potions, num_blue_potions, num_green_potions FROM global_inventory"))
-        for row in num_potions:                
-            num_red = row[0]
-            num_blue = row[1]
-            num_green = row[2]
+        result = connection.execute(sqlalchemy.text("SELECT sku, name, quantity, price, red_ml, green_ml, blue_ml, dark_ml \
+                                                    FROM catalog_items")).fetchall()
         res = []
-        if num_red > 0:
-            res.append({
-                "sku": "RED_POTION_0",
-                "name": "red potion",
-                "quantity": num_red,
-                "price": 50,
-                "potion_type": [100, 0, 0, 0]
-            })
-        if num_green > 0:
-            res.append({
-                "sku": "GREEN_POTION_0",
-                "name": "green potion",
-                "quantity": num_green,
-                "price": 50,
-                "potion_type": [0, 100, 0, 0]
-            })
-        if num_blue > 0:
-            res.append({
-                "sku": "BLUE_POTION_0",
-                "name": "blue potion",
-                "quantity": num_blue,
-                "price": 50,
-                "potion_type": [0, 0, 100, 0]
-            })
+        print(result)
+        total = 0
+        for row in result:
+            if row[2] > 0 and total + row[2] <= 20:
+                res.append({
+                    "sku": row[0],
+                    "name": row[1],
+                    "quantity": row[2],
+                    "price": row[3],
+                    "potion_type": [row[4], row[5], row[6], row[7]]
+                })
+                total += row[2]
+            elif total + row[2] > 20 and total != 20:
+                res.append({
+                    "sku": row[0],
+                    "name": row[1],
+                    "quantity": 20 - total,
+                    "price": row[3],
+                    "potion_type": [row[4], row[5], row[6], row[7]]
+                })
+                total += 20 - total
         return res
 
     

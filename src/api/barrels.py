@@ -27,13 +27,14 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
     blue_ml = 0
     price = 0
     for row in barrels_delivered:
-        if row.sku == "SMALL_RED_BARREL":
+        print("the barrel is ", row, row.price, row.quantity)
+        if row.sku == "SMALL_RED_BARREL" or row.sku == "MEDIUM_RED_BARREL" or row.sku == "MINI_RED_BARREL":
             price += row.price * row.quantity
             red_ml += row.ml_per_barrel * row.quantity
-        if row.sku == "SMALL_BLUE_BARREL":
+        elif row.sku == "SMALL_BLUE_BARREL" or row.sku ==  "MEDIUM_BLUE_BARREL" or row.sku == "MINI_BLUE_BARREL":
             price += row.price * row.quantity
             blue_ml += row.ml_per_barrel * row.quantity
-        if row.sku == "SMALL_GREEN_BARREL":
+        elif row.sku == "SMALL_GREEN_BARREL" or row.sku ==  "MEDIUM_GREEN _BARREL" or row.sku == "MINI_GREEN_BARREL":
             price += row.price * row.quantity
             green_ml += row.ml_per_barrel * row.quantity
     with db.engine.begin() as connection:
@@ -47,13 +48,59 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
 # Gets called once a day
 @router.post("/plan")
 def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
-    """ """
-    result = []
-    gold_spent = 0
-    random.shuffle(wholesale_catalog)
+    
     print(wholesale_catalog)
     with db.engine.begin() as connection:
-        gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).first()[0]
+        gold_spent = 0
+        stock = {}
+        result = connection.execute(sqlalchemy.text(
+            "SELECT num_red_ml, num_green_ml, num_blue_ml, gold \
+            FROM global_inventory"
+        )).first()
+        stock["RED_BARREL"], stock["GREEN_BARREL"], stock["BLUE_BARREL"] = result[0], result[1], result[2]
+        gold = result[3]
+        print(stock)
+        sorted_stock = dict(sorted(stock.items(), key=lambda item: item[1]))
+        print(sorted_stock.items())
+        res = []
+        for key, value in sorted_stock.items():
+                for barrel in wholesale_catalog:
+                    if barrel.quantity > 0 and barrel.sku == "MEDIUM_"+key and gold - gold_spent >= barrel.price:
+                        newBarrel = barrel
+                        newBarrel.quantity = 1
+                        res.append({"sku": barrel.sku,
+                                    "ml_per_barrel": barrel.ml_per_barrel,
+                                    "potion_type": barrel.potion_type,
+                                    "price": barrel.price,
+                                    "quantity": 1})
+                        barrel.quantity -= 1
+                        gold_spent += barrel.price
+                    elif barrel.quantity > 0 and barrel.sku == "SMALL_"+key and  gold - gold_spent >= barrel.price:
+                        newBarrel = barrel
+                        newBarrel.quantity = 1
+                        print(newBarrel)
+                        res.append({"sku": barrel.sku,
+                                    "ml_per_barrel": barrel.ml_per_barrel,
+                                    "potion_type": barrel.potion_type,
+                                    "price": barrel.price,
+                                    "quantity": 1})                        
+                        barrel.quantity -= 1
+                        gold_spent += barrel.price         
+                    elif barrel.quantity > 0 and barrel.sku == "MINI_"+key and  gold - gold_spent >= barrel.price:
+                        newBarrel = barrel
+                        newBarrel.quantity = 1
+                        print(newBarrel)
+                        res.append({"sku": barrel.sku,
+                                    "ml_per_barrel": barrel.ml_per_barrel,
+                                    "potion_type": barrel.potion_type,
+                                    "price": barrel.price,
+                                    "quantity": 1})                        
+                        barrel.quantity -= 1
+                        gold_spent += barrel.price
+                print(res)
+        return res
+                
+        """gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).first()[0]
         for barrel in wholesale_catalog:
             if barrel.quantity > 0:
                 if barrel.sku == "SMALL_RED_BARREL":
@@ -78,5 +125,4 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                         barrel.quantity = 1
                         result.append(barrel)
             if gold_spent >= gold:
-                return result
-        return result
+                return result"""

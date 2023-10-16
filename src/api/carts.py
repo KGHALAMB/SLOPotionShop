@@ -18,7 +18,9 @@ class NewCart(BaseModel):
 @router.post("/")
 def create_cart(new_cart: NewCart):
     """ """
-    return {"cart_id": 1}
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("INSERT INTO carts DEFAULT VALUES RETURNING id")).first()[0]
+    return {"cart_id": result}
 
 
 @router.get("/{cart_id}")
@@ -34,7 +36,19 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
-    cart_item.quantity = 1
+    with db.engine.begin() as connection:
+        result = connection.execute(sqlalchemy.text("INSERT INTO cart_items (cart, quantity, item_id) \
+                                                    SELECT :cart_id, :quantity, catalog_items.id \
+                                                    FROM catalog_items \
+                                                    WHERE catalog_items.sku = :item_sku"), 
+                                                    {"cart_id" : cart_id,
+                                                     "quantity" : cart_item.quantity,
+                                                     "item_sku" : item_sku})
+        result = connection.execute(sqlalchemy.text("UPDATE catalog_items \
+                                                    SET quantity = quantity - :quantity \
+                                                    WHERE sku = :item_sku"),
+                                                    {"quantity": cart_item.quantity,
+                                                     "item_sku": item_sku})
     return "OK"
 
 
@@ -43,27 +57,22 @@ class CartCheckout(BaseModel):
 
 @router.post("/{cart_id}/checkout")
 def checkout(cart_id: int, cart_checkout: CartCheckout):
-    red_potions_bought = 0
-    green_potions_bought = 0
-    blue_potions_bought = 0
-
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT num_red_potions, num_green_potions, num_blue_potions \
-                                                    FROM global_inventory"))
+        result = connection.execute(sqlalchemy.text("SELECT cart_items.quantity, catalog_items.price \
+                                    FROM cart_items \
+                                    JOIN carts on cart_items.cart = carts.id \
+                                    JOIN catalog_items on cart_items.item_id = catalog_items.id \
+                                    WHERE cart = :cart"), 
+                                    {"cart" : cart_id}).fetchall()
+        potions_bought = 0
+        gold_spent = 0
         for row in result:
-            red_num = row[0]
-            green_num = row[1]
-            blue_num = row[2]
-        all_potions_bought = 0
-        if red_num >= 1:
-            red_potions_bought += 1
-        if blue_num >= 1:
-            blue_potions_bought += 1
-        if green_num >= 1:
-            green_potions_bought += 1
-        all_potions_bought += red_potions_bought + blue_potions_bought + green_potions_bought
-        result = connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_red_potions = num_red_potions - " + str(red_potions_bought) + ", \
-                                                    num_green_potions = num_green_potions - " + str(green_potions_bought) + ", \
-                                                    num_blue_potions = num_blue_potions - " + str(blue_potions_bought) + ", \
-                                                    gold = gold + " + str(all_potions_bought * 50)))
-    return {"total_potions_bought": all_potions_bought, "total_gold_paid": all_potions_bought * 50}
+            potions_bought += row[0]
+            gold_spent += row[1] * row[0]
+        result = connection.execute(sqlalchemy.text("DELETE FROM carts \
+                                                    WHERE id = :cart"),
+                                                    {"cart": cart_id})
+        result = connection.execute(sqlalchemy.text("UPDATE global_inventory \
+                                                    SET gold = gold + :gold"),
+                                                    {"gold": gold_spent})
+    return {"total_potions_bought": potions_bought, "total_gold_paid": gold_spent}
