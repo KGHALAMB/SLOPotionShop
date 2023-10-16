@@ -57,11 +57,17 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             "SELECT num_red_ml, num_green_ml, num_blue_ml, gold \
             FROM global_inventory"
         )).first()
-        stock["RED_BARREL"], stock["GREEN_BARREL"], stock["BLUE_BARREL"] = result[0], result[1], result[2]
         gold = result[3]
-        print(stock)
-        sorted_stock = dict(sorted(stock.items(), key=lambda item: item[1]))
-        print(sorted_stock.items())
+        print(result)
+        if(sum(result[0:3]) == 0):
+            color = ["RED_BARREL", "GREEN_BARREL", "BLUE_BARREL"]
+            random.shuffle(color)
+            print(color)
+            sorted_stock = {color[0]: 0, color[1]: 0, color[2]: 0}
+        else:
+            stock["RED_BARREL"], stock["GREEN_BARREL"], stock["BLUE_BARREL"] = result[0], result[1], result[2]
+            print(stock)
+            sorted_stock = dict(sorted(stock.items(), key=lambda item: item[1]))      
         res = []
         for key, value in sorted_stock.items():
                 for barrel in wholesale_catalog:
