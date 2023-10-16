@@ -28,13 +28,13 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
     price = 0
     for row in barrels_delivered:
         print("the barrel is ", row, row.price, row.quantity)
-        if row.sku == "SMALL_RED_BARREL" or row.sku == "MEDIUM_RED_BARREL" or row.sku == "MINI_RED_BARREL":
+        if row.sku == "SMALL_RED_BARREL" or row.sku == "MEDIUM_RED_BARREL" or row.sku == "MINI_RED_BARREL" or row.sku == "LARGE_RED_BARREL":
             price += row.price * row.quantity
             red_ml += row.ml_per_barrel * row.quantity
-        elif row.sku == "SMALL_BLUE_BARREL" or row.sku ==  "MEDIUM_BLUE_BARREL" or row.sku == "MINI_BLUE_BARREL":
+        elif row.sku == "SMALL_BLUE_BARREL" or row.sku ==  "MEDIUM_BLUE_BARREL" or row.sku == "MINI_BLUE_BARREL" or row.sku == "LARGE_BLUE_BARREL":
             price += row.price * row.quantity
             blue_ml += row.ml_per_barrel * row.quantity
-        elif row.sku == "SMALL_GREEN_BARREL" or row.sku ==  "MEDIUM_GREEN _BARREL" or row.sku == "MINI_GREEN_BARREL":
+        elif row.sku == "SMALL_GREEN_BARREL" or row.sku ==  "MEDIUM_GREEN _BARREL" or row.sku == "MINI_GREEN_BARREL" or row.sku == "LARGE_GREEN_BARREL":
             price += row.price * row.quantity
             green_ml += row.ml_per_barrel * row.quantity
     with db.engine.begin() as connection:
@@ -65,6 +65,16 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         res = []
         for key, value in sorted_stock.items():
                 for barrel in wholesale_catalog:
+                    if barrel.quantity > 0 and barrel.sku == "LARGE_"+key and gold - gold_spent >= barrel.price:
+                        newBarrel = barrel
+                        newBarrel.quantity = 1
+                        res.append({"sku": barrel.sku,
+                                    "ml_per_barrel": barrel.ml_per_barrel,
+                                    "potion_type": barrel.potion_type,
+                                    "price": barrel.price,
+                                    "quantity": 1})
+                        barrel.quantity -= 1
+                        gold_spent += barrel.price
                     if barrel.quantity > 0 and barrel.sku == "MEDIUM_"+key and gold - gold_spent >= barrel.price:
                         newBarrel = barrel
                         newBarrel.quantity = 1
