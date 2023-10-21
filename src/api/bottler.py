@@ -18,24 +18,41 @@ class PotionInventory(BaseModel):
 @router.post("/deliver")
 def post_deliver_bottles(potions_delivered: list[PotionInventory]):
     """ """
-    with db.engine.begin() as connection:
-        for row in potions_delivered:
-            result = connection.execute(sqlalchemy.text("UPDATE catalog_items " \
-                                        "SET quantity = quantity + :amt_added " \
-                                        "WHERE red_ml = :red_ml and blue_ml = :blue_ml and green_ml = :green_ml"), 
-                                        {"amt_added" : row.quantity,
-                                         "red_ml" : row.potion_type[0],
-                                          "green_ml" : row.potion_type[1],
-                                          "blue_ml" : row.potion_type[2]})
-            result = connection.execute(sqlalchemy.text("UPDATE global_inventory SET " \
-                                                        "num_red_ml = num_red_ml - :amt_used_red, " \
-                                                        "num_green_ml = num_green_ml - :amt_used_green, " \
-                                                        "num_blue_ml = num_blue_ml - :amt_used_blue"),
-                                                        {"amt_used_red" : row.potion_type[0] * row.quantity,
-                                                         "amt_used_green" : row.potion_type[1] * row.quantity,
-                                                         "amt_used_blue" : row.potion_type[2] * row.quantity})
-            
-                                                         
+    with db.engine.begin() as connection:            
+        #make transaction id
+        transaction_id = connection.execute(sqlalchemy.text(
+                                        "INSERT INTO transactions (description) \
+                                        VALUES ('bottler delivered potions') \
+                                        RETURNING id"
+                                        )).first()[0]
+        for row in potions_delivered:            
+            # make ml ledger
+            if row.quantity > 0:
+                connection.execute(sqlalchemy.text("INSERT INTO ml_ledger (color, ml_transaction_id, change) \
+                                                    VALUES \
+                                                    ('red', :transaction_id, :red_quantity), \
+                                                    ('blue', :transaction_id, :blue_quantity), \
+                                                    ('green', :transaction_id, :green_quantity)"),
+                                                    {"transaction_id" : transaction_id,
+                                                    "red_quantity" : -row.potion_type[0] * row.quantity,
+                                                    "green_quantity" : -row.potion_type[1] * row.quantity,
+                                                    "blue_quantity" : -row.potion_type[2] * row.quantity})
+                #get potion id
+                potion_id = connection.execute(sqlalchemy.text(
+                    "SELECT id \
+                    FROM catalog_items \
+                    WHERE red_ml = :red and green_ml = :green and blue_ml = :blue and dark_ml = 0"),
+                    {"red": row.potion_type[0],
+                    "green": row.potion_type[1],
+                    "blue": row.potion_type[2]}).first()[0]
+                # make potion ledger
+                connection.execute(sqlalchemy.text("INSERT INTO potions_ledger (potion_id, potion_transaction_id, change) \
+                                                    VALUES \
+                                                    (':id', :transaction_id, :quantity)"),
+                                                    {"id": potion_id,
+                                                    "transaction_id" : transaction_id,
+                                                    "quantity" : row.quantity})
+                                                
     return "OK"
 
 # Gets called 4 times a day
@@ -46,15 +63,23 @@ def get_bottle_plan():
     """
     potions ={}
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT name, quantity, red_ml, green_ml, blue_ml, dark_ml FROM catalog_items"))
+        result = connection.execute(sqlalchemy.text("SELECT name, red_ml, green_ml, blue_ml, dark_ml FROM catalog_items"))
         for row in result:
-            potions[row[0]] =  {"quantity" : row[1], "recipe" : [row[2], row[3], row[4], row[5]], "amt_added" : 0}
+            print(row)
+            quantity = connection.execute(sqlalchemy.text(
+                "SELECT sum(change) FROM potions_ledger WHERE potion_id = 1")).first()[0]
+            potions[row[0]] =  {"quantity" : quantity, "recipe" : [row[1], row[2], row[3], row[4]], "amt_added" : 0}
         sorted_potions = dict(sorted(potions.items(), key=lambda item: item[1]["quantity"]))
-        result = connection.execute(sqlalchemy.text("SELECT num_red_ml, num_green_ml, num_blue_ml FROM global_inventory"))
-        for row in result:
-            red_ml = row[0]
-            green_ml = row[1]
-            blue_ml = row[2]
+        red_ml = connection.execute(sqlalchemy.text("SELECT SUM(change) \
+                                                    FROM ml_ledger \
+                                                    WHERE color = 'red'")).first()[0]
+        green_ml = connection.execute(sqlalchemy.text("SELECT SUM(change) \
+                                                    FROM ml_ledger \
+                                                    WHERE color = 'green'")).first()[0]
+        blue_ml = connection.execute(sqlalchemy.text("SELECT SUM(change) \
+                                                    FROM ml_ledger \
+                                                    WHERE color = 'blue'")).first()[0]
+        
         ml_stock = [red_ml, green_ml, blue_ml, 0]
         for key, value in sorted_potions.items():
             if red_ml >= value["recipe"][0] and green_ml >= value["recipe"][1] and blue_ml >= value["recipe"][2]:

@@ -38,10 +38,36 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
             price += row.price * row.quantity
             green_ml += row.ml_per_barrel * row.quantity
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("UPDATE global_inventory SET num_red_ml = num_red_ml + " + str(red_ml) +
-                                                    ", num_blue_ml = num_blue_ml + " + str(blue_ml) +  
-                                                    ", num_green_ml = num_green_ml + " + str(green_ml) + 
-                                                    ", gold = gold - " + str(price)))
+        # record transaction
+        transaction_id = connection.execute(sqlalchemy.text(
+            "INSERT INTO transactions (description) \
+            VALUES (':red_ml ml to red, :green_ml to green, :blue_ml to blue, paid :price gold') \
+            RETURNING id"), 
+            {"red_ml": red_ml, "green_ml": green_ml, "blue_ml": blue_ml, "price": price}
+        ).first()[0]
+        # add to the ml ledger 
+        connection.execute(sqlalchemy.text(
+            "INSERT INTO ml_ledger (color, ml_transaction_id, change) \
+            VALUES \
+            ('red', :transaction_id, :red_ml), \
+            ('green', :transaction_id, :green_ml), \
+            ('blue', :transaction_id, :blue_ml) \
+            RETURNING id"), 
+            {"red_ml": red_ml, "green_ml": green_ml, "blue_ml": blue_ml, "transaction_id": transaction_id}
+        )
+        # add to the gold ledger
+        connection.execute(sqlalchemy.text(
+            "INSERT INTO gold_ledger (gold_transaction_id, change) \
+            VALUES \
+            (:transaction_id, :price) \
+            RETURNING id"), 
+            {"price": -price, "transaction_id": transaction_id}
+        )
+
+        #connection.execute(sqlalchemy.text(
+        #    "INSERT INTO transactions (description) VALUES ('adding 50 ml to red') \
+        #    RETURNING id"
+        #)).first()[0]
     print(barrels_delivered)
     return "OK"
 
@@ -57,15 +83,27 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
             "SELECT num_red_ml, num_green_ml, num_blue_ml, gold \
             FROM global_inventory"
         )).first()
-        gold = result[3]
+        red_ml = connection.execute(sqlalchemy.text(
+            "SELECT SUM(change) FROM ml_ledger WHERE color = 'red'"   
+        )).first()[0]
+        green_ml = connection.execute(sqlalchemy.text(
+            "SELECT SUM(change) FROM ml_ledger WHERE color = 'green'"   
+        )).first()[0]
+        blue_ml = connection.execute(sqlalchemy.text(
+            "SELECT SUM(change) FROM ml_ledger WHERE color = 'blue'"   
+        )).first()[0]
+        gold = connection.execute(sqlalchemy.text(
+            "SELECT SUM(change) FROM gold_ledger"   
+        )).first()[0]
+        #gold = result[3]
         print(result)
-        if(sum(result[0:3]) == 0):
+        if(sum([red_ml, green_ml, blue_ml]) == 0):
             color = ["RED_BARREL", "GREEN_BARREL", "BLUE_BARREL"]
             random.shuffle(color)
             print(color)
             sorted_stock = {color[0]: 0, color[1]: 0, color[2]: 0}
         else:
-            stock["RED_BARREL"], stock["GREEN_BARREL"], stock["BLUE_BARREL"] = result[0], result[1], result[2]
+            stock["RED_BARREL"], stock["GREEN_BARREL"], stock["BLUE_BARREL"] = red_ml, green_ml, blue_ml
             print(stock)
             sorted_stock = dict(sorted(stock.items(), key=lambda item: item[1]))      
         res = []
@@ -116,29 +154,3 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                 print(res)
         return res
                 
-        """gold = connection.execute(sqlalchemy.text("SELECT gold FROM global_inventory")).first()[0]
-        for barrel in wholesale_catalog:
-            if barrel.quantity > 0:
-                if barrel.sku == "SMALL_RED_BARREL":
-                    red_price = barrel.price
-                    num_potions = connection.execute(sqlalchemy.text("SELECT num_red_potions FROM global_inventory"))
-                    if num_potions.first()[0] < 5 and gold-gold_spent >= red_price:
-                        barrel.quantity = 1
-                        gold_spent += red_price
-                        result.append(barrel)
-                if barrel.sku == "SMALL_GREEN_BARREL":
-                    green_price = barrel.price
-                    num_potions = connection.execute(sqlalchemy.text("SELECT num_green_potions FROM global_inventory"))
-                    if num_potions.first()[0] < 5 and gold-gold_spent >= green_price:
-                        barrel.quantity = 1
-                        gold_spent += green_price
-                        result.append(barrel)
-                if barrel.sku == "SMALL_BLUE_BARREL":
-                    blue_price = barrel.price
-                    num_potions = connection.execute(sqlalchemy.text("SELECT num_blue_potions FROM global_inventory"))
-                    if num_potions.first()[0] < 5 and gold-gold_spent >= blue_price:
-                        gold_spent += blue_price
-                        barrel.quantity = 1
-                        result.append(barrel)
-            if gold_spent >= gold:
-                return result"""

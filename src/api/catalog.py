@@ -11,13 +11,20 @@ def get_catalog():
     Each unique item combination must have only a single price.
     """
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT sku, name, quantity, price, red_ml, green_ml, blue_ml, dark_ml \
-                                                    FROM catalog_items")).fetchall()
+        result = connection.execute(sqlalchemy.text("SELECT sku, name, SUM(change) AS quantity, price, red_ml, green_ml, blue_ml, dark_ml \
+                                                    FROM ( \
+                                                    SELECT * \
+                                                    FROM catalog_items \
+                                                    JOIN potions_ledger ON catalog_items.id = potions_ledger.potion_id \
+                                                    ) AS potions \
+                                                    GROUP BY sku, name, price, red_ml, green_ml, blue_ml, dark_ml \
+                                                    ORDER BY quantity DESC \
+                                                    LIMIT 6")).fetchall()
+        
         res = []
         print(result)
-        total = 0
         for row in result:
-            if row[2] > 0 and total + row[2] <= 20:
+            if row[2] > 0:
                 res.append({
                     "sku": row[0],
                     "name": row[1],
@@ -25,19 +32,9 @@ def get_catalog():
                     "price": row[3],
                     "potion_type": [row[4], row[5], row[6], row[7]]
                 })
-                total += row[2]
-            elif total + row[2] > 20 and total != 20:
-                res.append({
-                    "sku": row[0],
-                    "name": row[1],
-                    "quantity": 20 - total,
-                    "price": row[3],
-                    "potion_type": [row[4], row[5], row[6], row[7]]
-                })
-                total += 20 - total
         return res
 
     
-    # Can return a max of 20 items.
+    # Can return a max of 6 items.
 
     
