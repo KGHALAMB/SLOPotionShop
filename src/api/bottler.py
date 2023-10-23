@@ -63,11 +63,12 @@ def get_bottle_plan():
     """
     potions ={}
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("SELECT name, red_ml, green_ml, blue_ml, dark_ml FROM catalog_items"))
+        result = connection.execute(sqlalchemy.text("SELECT name, red_ml, green_ml, blue_ml, dark_ml, id FROM catalog_items"))
         for row in result:
             print(row)
             quantity = connection.execute(sqlalchemy.text(
-                "SELECT sum(change) FROM potions_ledger WHERE potion_id = 1")).first()[0]
+                "SELECT sum(change) FROM potions_ledger WHERE potion_id = :potion_id"),
+                {"potion_id": row[5]}).first()[0]
             potions[row[0]] =  {"quantity" : quantity, "recipe" : [row[1], row[2], row[3], row[4]], "amt_added" : 0}
         sorted_potions = dict(sorted(potions.items(), key=lambda item: item[1]["quantity"]))
         red_ml = connection.execute(sqlalchemy.text("SELECT SUM(change) \

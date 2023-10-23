@@ -79,10 +79,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
     with db.engine.begin() as connection:
         gold_spent = 0
         stock = {}
-        result = connection.execute(sqlalchemy.text(
-            "SELECT num_red_ml, num_green_ml, num_blue_ml, gold \
-            FROM global_inventory"
-        )).first()
         red_ml = connection.execute(sqlalchemy.text(
             "SELECT SUM(change) FROM ml_ledger WHERE color = 'red'"   
         )).first()[0]
@@ -95,8 +91,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         gold = connection.execute(sqlalchemy.text(
             "SELECT SUM(change) FROM gold_ledger"   
         )).first()[0]
-        #gold = result[3]
-        print(result)
         if(sum([red_ml, green_ml, blue_ml]) == 0):
             color = ["RED_BARREL", "GREEN_BARREL", "BLUE_BARREL"]
             random.shuffle(color)
