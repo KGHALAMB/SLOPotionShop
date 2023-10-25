@@ -22,6 +22,7 @@ class Barrel(BaseModel):
 @router.post("/deliver")
 def post_deliver_barrels(barrels_delivered: list[Barrel]):
     """ """
+    print(barrels_delivered)
     red_ml = 0
     green_ml = 0
     blue_ml = 0
@@ -34,7 +35,7 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
         elif row.sku == "SMALL_BLUE_BARREL" or row.sku ==  "MEDIUM_BLUE_BARREL" or row.sku == "MINI_BLUE_BARREL" or row.sku == "LARGE_BLUE_BARREL":
             price += row.price * row.quantity
             blue_ml += row.ml_per_barrel * row.quantity
-        elif row.sku == "SMALL_GREEN_BARREL" or row.sku ==  "MEDIUM_GREEN _BARREL" or row.sku == "MINI_GREEN_BARREL" or row.sku == "LARGE_GREEN_BARREL":
+        elif row.sku == "SMALL_GREEN_BARREL" or row.sku ==  "MEDIUM_GREEN_BARREL" or row.sku == "MINI_GREEN_BARREL" or row.sku == "LARGE_GREEN_BARREL":
             price += row.price * row.quantity
             green_ml += row.ml_per_barrel * row.quantity
     with db.engine.begin() as connection:
@@ -89,13 +90,12 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
         if(sum([red_ml, green_ml, blue_ml]) == 0):
             color = ["RED_BARREL", "GREEN_BARREL", "BLUE_BARREL"]
             random.shuffle(color)
-            print(color)
             sorted_stock = {color[0]: 0, color[1]: 0, color[2]: 0}
         else:
             stock["RED_BARREL"], stock["GREEN_BARREL"], stock["BLUE_BARREL"] = red_ml, green_ml, blue_ml
-            print(stock)
             sorted_stock = dict(sorted(stock.items(), key=lambda item: item[1]))      
         res = []
+        print(sorted_stock)
         for key, value in sorted_stock.items():
                 for barrel in wholesale_catalog:
                     if barrel.quantity > 0 and barrel.sku == "LARGE_"+key and gold - gold_spent >= barrel.price:
@@ -121,7 +121,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     elif barrel.quantity > 0 and barrel.sku == "SMALL_"+key and  gold - gold_spent >= barrel.price:
                         newBarrel = barrel
                         newBarrel.quantity = 1
-                        print(newBarrel)
                         res.append({"sku": barrel.sku,
                                     "ml_per_barrel": barrel.ml_per_barrel,
                                     "potion_type": barrel.potion_type,
@@ -132,7 +131,6 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                     elif barrel.quantity > 0 and barrel.sku == "MINI_"+key and  gold - gold_spent >= barrel.price:
                         newBarrel = barrel
                         newBarrel.quantity = 1
-                        print(newBarrel)
                         res.append({"sku": barrel.sku,
                                     "ml_per_barrel": barrel.ml_per_barrel,
                                     "potion_type": barrel.potion_type,
@@ -140,6 +138,5 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                                     "quantity": 1})                        
                         barrel.quantity -= 1
                         gold_spent += barrel.price
-                print(res)
         return res
                 
