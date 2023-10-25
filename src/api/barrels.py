@@ -63,11 +63,6 @@ def post_deliver_barrels(barrels_delivered: list[Barrel]):
             RETURNING id"), 
             {"price": -price, "transaction_id": transaction_id}
         )
-
-        #connection.execute(sqlalchemy.text(
-        #    "INSERT INTO transactions (description) VALUES ('adding 50 ml to red') \
-        #    RETURNING id"
-        #)).first()[0]
     print(barrels_delivered)
     return "OK"
 
@@ -113,7 +108,7 @@ def get_wholesale_purchase_plan(wholesale_catalog: list[Barrel]):
                                     "quantity": 1})
                         barrel.quantity -= 1
                         gold_spent += barrel.price
-                    if barrel.quantity > 0 and barrel.sku == "MEDIUM_"+key and gold - gold_spent >= barrel.price:
+                    elif barrel.quantity > 0 and barrel.sku == "MEDIUM_"+key and gold - gold_spent >= barrel.price:
                         newBarrel = barrel
                         newBarrel.quantity = 1
                         res.append({"sku": barrel.sku,
