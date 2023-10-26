@@ -63,7 +63,7 @@ def search_orders(
     if customer_name != "":
         stmt = stmt.where(carts.c.name == customer_name)
     if potion_sku != "":
-        stmt = stmt.where(catalog_items.c.sku == customer_name)
+        stmt = stmt.where(catalog_items.c.sku == potion_sku)
 
     if sort_col is search_sort_options.customer_name:
         if sort_order == search_sort_order.asc:
