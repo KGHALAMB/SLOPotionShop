@@ -58,11 +58,18 @@ def search_orders(
         .join(catalog_items, catalog_items.c.id == cart_items.c.item_id)
         .offset(0)
         .limit(5)
+        .where(carts.c.checked_out == True)
         )
     if customer_name != "":
-        stmt.where(carts.c.name == customer_name)
+        stmt = stmt.where(carts.c.name == customer_name)
     if potion_sku != "":
-        stmt.where(catalog_items.c.sku == customer_name)
+        stmt = stmt.where(catalog_items.c.sku == customer_name)
+    if sort_col is search_sort_options.customer_name:
+        stmt = stmt.order_by(carts.c.name, sort_order)
+    elif sort_col is search_sort_options.item_sku:
+        stmt = stmt.order_by(catalog_items.c.sku, sort_order)
+    elif sort_col is search_sort_options.line_item_total:
+        order_by = sqlalchemy.desc(db.movies.c.imdb_rating)
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
         line_item = []
