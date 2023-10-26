@@ -34,17 +34,6 @@ def search_orders(
     cart_items = sqlalchemy.Table("cart_items", metadata_obj, autoload_with=db.engine)
     carts = sqlalchemy.Table("carts", metadata_obj, autoload_with=db.engine)
     catalog_items = sqlalchemy.Table("catalog_items", metadata_obj, autoload_with=db.engine)
-    """
-    SELECT cart_items.id, sku, price, carts.name
-    FROM cart_items
-    JOIN (SELECT id, name 
-        FROM carts
-        WHERE checked_out = TRUE) as carts
-    ON cart_items.cart = carts.id
-    JOIN catalog_items
-    ON item_id = catalog_items.id
-    OFFSET 0
-    """
     stmt = (
         sqlalchemy.select(
             cart_items.c.id,
@@ -85,7 +74,6 @@ def search_orders(
             stmt = stmt.order_by(sqlalchemy.asc(cart_items.c.created_at))
         else:
             stmt = stmt.order_by(sqlalchemy.desc(cart_items.c.created_at))    
-    
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
         line_item = []
@@ -137,8 +125,8 @@ def search_orders(
     """
 
     return {
-        "previous": "",
-        "next": "",
+        "previous": "yes",
+        "next": "yes",
         "results": line_item
     }
 
