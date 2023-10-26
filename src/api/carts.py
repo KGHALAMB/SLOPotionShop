@@ -64,12 +64,14 @@ def search_orders(
         stmt = stmt.where(carts.c.name == customer_name)
     if potion_sku != "":
         stmt = stmt.where(catalog_items.c.sku == customer_name)
+    
     if sort_col is search_sort_options.customer_name:
         stmt = stmt.order_by(carts.c.name, sort_order)
     elif sort_col is search_sort_options.item_sku:
         stmt = stmt.order_by(catalog_items.c.sku, sort_order)
     elif sort_col is search_sort_options.line_item_total:
-        order_by = sqlalchemy.desc(db.movies.c.imdb_rating)
+        stmt = stmt.order_by(catalog_items.c.price * cart_items.c.quantity)
+    
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
         line_item = []
