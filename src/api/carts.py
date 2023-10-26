@@ -79,7 +79,12 @@ def search_orders(
         if sort_order == search_sort_order.asc:
             stmt = stmt.order_by(sqlalchemy.asc(catalog_items.c.price * cart_items.c.quantity))
         else:
-            stmt = stmt.order_by(sqlalchemy.desc(catalog_items.c.price * cart_items.c.quantity))    
+            stmt = stmt.order_by(sqlalchemy.desc(catalog_items.c.price * cart_items.c.quantity))
+    elif sort_col is search_sort_options.line_item_total:
+        if sort_order == search_sort_order.asc:
+            stmt = stmt.order_by(sqlalchemy.asc(cart_items.c.created_at))
+        else:
+            stmt = stmt.order_by(sqlalchemy.desc(cart_items.c.created_at))    
     
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
