@@ -25,10 +25,11 @@ class search_sort_order(str, Enum):
 def search_orders(
     customer_name: str = "", #search for this customer
     potion_sku: str = "", #search for this sku
-    search_page: str = "", #
+    search_page: str = "", # idk dude like whaaaat
     sort_col: search_sort_options = search_sort_options.timestamp, #automatically sorts by timestamp
     sort_order: search_sort_order = search_sort_order.desc, #automatically sorts by desc
 ):
+    
     metadata_obj = sqlalchemy.MetaData()
     cart_items = sqlalchemy.Table("cart_items", metadata_obj, autoload_with=db.engine)
     carts = sqlalchemy.Table("carts", metadata_obj, autoload_with=db.engine)
@@ -50,26 +51,29 @@ def search_orders(
             catalog_items.c.sku,
             catalog_items.c.price,
             carts.c.name,
-            cart_items.c.created_at
+            cart_items.c.created_at,
+            cart_items.c.quantity
         )
         .join(carts, cart_items.c.cart == carts.c.id)
         .join(catalog_items, catalog_items.c.id == cart_items.c.item_id)
         .offset(0)
+        .limit(5)
         )
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
         line_item = []
         for row in res:
             print(row)
-            line_item.append(
+            line_item.append (
                 {
                     "line_item_id": row[0],
                     "item_sku": row[1],
                     "customer_name": row[3],
-                    "line_item_total": row[2],
+                    "line_item_total": row[2] * row[5],
                     "timestamp": row[4]
                 }
             )
+        
         """offset = 0 * search_page
         if sort_col is search_sort_options.customer_name:
             order_by = db.movies.c.title
