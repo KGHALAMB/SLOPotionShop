@@ -49,7 +49,8 @@ def search_orders(
             cart_items.c.id,
             catalog_items.c.sku,
             catalog_items.c.price,
-            carts.c.name
+            carts.c.name,
+            cart_items.c.created_at
         )
         .join(carts, cart_items.c.cart == carts.c.id)
         .join(catalog_items, catalog_items.c.id == cart_items.c.item_id)
@@ -57,8 +58,18 @@ def search_orders(
         )
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
+        line_item = []
         for row in res:
             print(row)
+            line_item.append(
+                {
+                    "line_item_id": row[0],
+                    "item_sku": row[1],
+                    "customer_name": row[3],
+                    "line_item_total": row[2],
+                    "timestamp": row[4]
+                }
+            )
         """offset = 0 * search_page
         if sort_col is search_sort_options.customer_name:
             order_by = db.movies.c.title
@@ -97,43 +108,7 @@ def search_orders(
     return {
         "previous": "",
         "next": "",
-        "results": [
-            {
-                "line_item_id": 1,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            },
-            {
-                "line_item_id": 2,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            },
-            {
-                "line_item_id": 3,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            },
-            {
-                "line_item_id": 4,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            },
-            {
-                "line_item_id": 5,
-                "item_sku": "1 oblivion potion",
-                "customer_name": "Scaramouche",
-                "line_item_total": 50,
-                "timestamp": "2021-01-01T00:00:00Z",
-            }
-        ],
+        "results": line_item
     }
 
 
