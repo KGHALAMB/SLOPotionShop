@@ -95,8 +95,8 @@ def search_orders(
     """
 
     return {
-        "previous": "previous",
-        "next": "previous",
+        "previous": "",
+        "next": "",
         "results": [
             {
                 "line_item_id": 1,
