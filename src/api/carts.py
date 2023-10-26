@@ -59,6 +59,10 @@ def search_orders(
         .offset(0)
         .limit(5)
         )
+    if customer_name != "":
+        stmt.where(carts.c.name == customer_name)
+    if potion_sku != "":
+        stmt.where(catalog_items.c.sku == customer_name)
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
         line_item = []
