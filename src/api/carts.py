@@ -30,7 +30,7 @@ def search_orders(
     sort_order: search_sort_order = search_sort_order.desc, #automatically sorts by desc
 ):
     if search_page != "1":
-        previous = "yes"
+        previous = str(int(search_page) - 1)
     else: 
         previous = ""
 
@@ -83,7 +83,7 @@ def search_orders(
         res = res.all()
         line_item = []
         if len(res) > 5:
-            next = "yes"
+            next = str(int(search_page) + 1)
         else: 
             next = ""
         res = res[:5]
