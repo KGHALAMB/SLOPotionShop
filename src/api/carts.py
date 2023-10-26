@@ -23,12 +23,52 @@ class search_sort_order(str, Enum):
 
 @router.get("/search/", tags=["search"])
 def search_orders(
-    customer_name: str = "",
-    potion_sku: str = "",
-    search_page: str = "",
-    sort_col: search_sort_options = search_sort_options.timestamp,
-    sort_order: search_sort_order = search_sort_order.desc,
+    customer_name: str = "", #search for this customer
+    potion_sku: str = "", #search for this sku
+    search_page: str = "", #
+    sort_col: search_sort_options = search_sort_options.timestamp, #automatically sorts by timestamp
+    sort_order: search_sort_order = search_sort_order.desc, #automatically sorts by desc
 ):
+    metadata_obj = sqlalchemy.MetaData()
+    cart_items = sqlalchemy.Table("cart_items", metadata_obj, autoload_with=db.engine)
+    carts = sqlalchemy.Table("carts", metadata_obj, autoload_with=db.engine)
+    catalog_items = sqlalchemy.Table("catalog_items", metadata_obj, autoload_with=db.engine)
+    """
+    SELECT cart_items.id, sku, price, carts.name
+    FROM cart_items
+    JOIN (SELECT id, name 
+        FROM carts
+        WHERE checked_out = TRUE) as carts
+    ON cart_items.cart = carts.id
+    JOIN catalog_items
+    ON item_id = catalog_items.id
+    OFFSET 0
+    """
+    stmt = (
+        sqlalchemy.select(
+            cart_items.c.id,
+            catalog_items.c.sku,
+            catalog_items.c.price,
+            carts.c.name
+        )
+        .join(carts, cart_items.c.cart == carts.c.id)
+        .join(catalog_items, catalog_items.c.id == cart_items.c.item_id)
+        .offset(0)
+        )
+    with db.engine.begin() as connection:
+        res = connection.execute(stmt)
+        for row in res:
+            print(row)
+        """offset = 0 * search_page
+        if sort_col is search_sort_options.customer_name:
+            order_by = db.movies.c.title
+        elif sort_col is search_sort_options.item_sku:
+            order_by = db.movies.c.year
+        elif sort_col is search_sort_options.rating:
+            order_by = sqlalchemy.desc(db.movies.c.imdb_rating)
+        else:
+            assert False"""
+
     """
     Search for cart line items by customer name and/or potion sku.
 
@@ -55,11 +95,39 @@ def search_orders(
     """
 
     return {
-        "previous": "",
-        "next": "",
+        "previous": "previous",
+        "next": "previous",
         "results": [
             {
                 "line_item_id": 1,
+                "item_sku": "1 oblivion potion",
+                "customer_name": "Scaramouche",
+                "line_item_total": 50,
+                "timestamp": "2021-01-01T00:00:00Z",
+            },
+            {
+                "line_item_id": 2,
+                "item_sku": "1 oblivion potion",
+                "customer_name": "Scaramouche",
+                "line_item_total": 50,
+                "timestamp": "2021-01-01T00:00:00Z",
+            },
+            {
+                "line_item_id": 3,
+                "item_sku": "1 oblivion potion",
+                "customer_name": "Scaramouche",
+                "line_item_total": 50,
+                "timestamp": "2021-01-01T00:00:00Z",
+            },
+            {
+                "line_item_id": 4,
+                "item_sku": "1 oblivion potion",
+                "customer_name": "Scaramouche",
+                "line_item_total": 50,
+                "timestamp": "2021-01-01T00:00:00Z",
+            },
+            {
+                "line_item_id": 5,
                 "item_sku": "1 oblivion potion",
                 "customer_name": "Scaramouche",
                 "line_item_total": 50,
@@ -77,7 +145,10 @@ class NewCart(BaseModel):
 def create_cart(new_cart: NewCart):
     """ """
     with db.engine.begin() as connection:
-        result = connection.execute(sqlalchemy.text("INSERT INTO carts DEFAULT VALUES RETURNING id")).first()[0]
+        result = connection.execute(sqlalchemy.text("INSERT INTO carts (name) \
+                                                    VALUES (:name) \
+                                                    RETURNING id"),
+                                                    {"name": new_cart.customer}).first()[0]
     return {"cart_id": result}
 
 
@@ -94,6 +165,7 @@ class CartItem(BaseModel):
 
 @router.post("/{cart_id}/items/{item_sku}")
 def set_item_quantity(cart_id: int, item_sku: str, cart_item: CartItem):
+    
     with db.engine.begin() as connection:
         result = connection.execute(sqlalchemy.text("INSERT INTO cart_items (cart, quantity, item_id) \
                                                     SELECT :cart_id, :quantity, catalog_items.id \
@@ -143,8 +215,9 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
         for row in result:
             potions_bought += row[0]
             gold_spent += row[1] * row[0]
-        result = connection.execute(sqlalchemy.text("DELETE FROM carts \
-                                                    WHERE id = :cart"),
+        result = connection.execute(sqlalchemy.text("UPDATE carts \
+                                                    SET checked_out = true \
+                                                    WHERE id=:cart"),
                                                     {"cart": cart_id})
         transaction_id = connection.execute(sqlalchemy.text(
             "INSERT INTO transactions (description) \
