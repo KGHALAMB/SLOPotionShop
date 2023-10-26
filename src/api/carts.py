@@ -25,11 +25,15 @@ class search_sort_order(str, Enum):
 def search_orders(
     customer_name: str = "", #search for this customer
     potion_sku: str = "", #search for this sku
-    search_page: str = "", # idk dude like whaaaat
+    search_page: str = "1", # idk dude like whaaaat
     sort_col: search_sort_options = search_sort_options.timestamp, #automatically sorts by timestamp
     sort_order: search_sort_order = search_sort_order.desc, #automatically sorts by desc
 ):
-    
+    if search_page != "1":
+        previous = "yes"
+    else: 
+        previous = ""
+
     metadata_obj = sqlalchemy.MetaData()
     cart_items = sqlalchemy.Table("cart_items", metadata_obj, autoload_with=db.engine)
     carts = sqlalchemy.Table("carts", metadata_obj, autoload_with=db.engine)
@@ -45,8 +49,8 @@ def search_orders(
         )
         .join(carts, cart_items.c.cart == carts.c.id)
         .join(catalog_items, catalog_items.c.id == cart_items.c.item_id)
-        .offset(0)
-        .limit(5)
+        .offset((int(search_page) - 1) * 5)
+        .limit(6)
         .where(carts.c.checked_out == True)
         )
     if customer_name != "":
@@ -76,7 +80,13 @@ def search_orders(
             stmt = stmt.order_by(sqlalchemy.desc(cart_items.c.created_at))    
     with db.engine.begin() as connection:
         res = connection.execute(stmt)
+        res = res.all()
         line_item = []
+        if len(res) > 5:
+            next = "yes"
+        else: 
+            next = ""
+        res = res[:5]
         for row in res:
             print(row)
             line_item.append (
@@ -125,8 +135,8 @@ def search_orders(
     """
 
     return {
-        "previous": "yes",
-        "next": "yes",
+        "previous": previous,
+        "next": next,
         "results": line_item
     }
 
