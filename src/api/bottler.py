@@ -80,9 +80,13 @@ def get_bottle_plan():
         blue_ml = connection.execute(sqlalchemy.text("SELECT SUM(change) \
                                                     FROM ml_ledger \
                                                     WHERE color = 'blue'")).first()[0]
-        
+        full_inventory = connection.execute(sqlalchemy.text(
+                "SELECT sum(change) FROM potions_ledger")).first()[0]
+        tot_added = 0
         ml_stock = [red_ml, green_ml, blue_ml, 0]
         for key, value in sorted_potions.items():
+            if tot_added == 300 - full_inventory:
+                break
             if red_ml >= value["recipe"][0] and green_ml >= value["recipe"][1] and blue_ml >= value["recipe"][2]:
                 max_potions = [0, 0, 0, 0] 
                 for i in range(0, len(max_potions)):
@@ -91,7 +95,10 @@ def get_bottle_plan():
                     else:
                         max_potions[i] = float('inf')
                 added_pots = min(max_potions)
+                if added_pots > 300 - full_inventory:
+                    added_pots = 300 - full_inventory
                 value["amt_added"] += added_pots
+                tot_added += added_pots
                 for i in range(0, len(ml_stock)):
                     ml_stock[i] -= added_pots * value["recipe"][i]
                     print(value)
